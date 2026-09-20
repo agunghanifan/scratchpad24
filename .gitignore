@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+coverage
+*.log
+.env
+.env.local
+COVERAGE_TEST_PLAN.md
+PROJECT_LOG.md
+scratchpad24-team-kickoff-prompt_v1.md

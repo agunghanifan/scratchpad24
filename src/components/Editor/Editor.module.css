@@ -1,0 +1,36 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 300px;
+  padding: 1rem;
+  font-family: monospace;
+  font-size: 1rem;
+  line-height: 1.5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.counter {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.error {
+  color: #d32f2f;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
