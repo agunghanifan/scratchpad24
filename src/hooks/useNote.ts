@@ -27,8 +27,9 @@ export default function useNote(noteId: string): UseNoteResult {
       } catch (err) {
         if (!cancelled) {
           const error = err instanceof Error ? err : new Error('Failed to fetch note');
+          const errorWithStatus = err as Error & { status?: number };
           // Normalize 404 errors to uniform message
-          if ((err as any).status === 404) {
+          if (errorWithStatus.status === 404) {
             setError(new Error('Note not found or expired'));
           } else {
             setError(error);

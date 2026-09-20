@@ -10,7 +10,7 @@ describe('API client', () => {
 
   beforeEach(() => {
     mockFetch = vi.fn();
-    global.fetch = mockFetch as any;
+    global.fetch = mockFetch as typeof global.fetch;
   });
 
   afterEach(() => {
@@ -59,9 +59,10 @@ describe('API client', () => {
       try {
         await getNote('abc');
         expect.fail('should have thrown');
-      } catch (err: any) {
-        expect(err.message).toBe('Not found');
-        expect(err.status).toBe(404);
+      } catch (err) {
+        const error = err as Error & { status?: number };
+        expect(error.message).toBe('Not found');
+        expect(error.status).toBe(404);
       }
     });
 
@@ -73,9 +74,10 @@ describe('API client', () => {
       try {
         await getNote('abc');
         expect.fail('should have thrown');
-      } catch (err: any) {
-        expect(err.message).toBe('Failed to fetch note');
-        expect(err.status).toBe(500);
+      } catch (err) {
+        const error = err as Error & { status?: number };
+        expect(error.message).toBe('Failed to fetch note');
+        expect(error.status).toBe(500);
       }
     });
   });

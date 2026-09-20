@@ -57,12 +57,12 @@ describe('Cron Trigger - cleanupExpired', () => {
     });
 
     it('accepts env object with NOTES_KV binding', async () => {
-      const result = await cleanupExpired(env as any);
+      const result = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(typeof result).toBe('number');
     });
 
     it('returns a Promise<number>', async () => {
-      const result = cleanupExpired(env as any);
+      const result = cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(result).toBeInstanceOf(Promise);
       const value = await result;
       expect(typeof value).toBe('number');
@@ -71,7 +71,7 @@ describe('Cron Trigger - cleanupExpired', () => {
 
   describe('cleanup behavior', () => {
     it('returns 0 when store is empty', async () => {
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(0);
     });
 
@@ -84,7 +84,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('fresh-note', JSON.stringify(note), { expirationTtl: 86400 });
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(0);
     });
 
@@ -97,7 +97,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('expired-note', JSON.stringify(expiredNote));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(1);
       expect(kv.delete).toHaveBeenCalledWith('expired-note');
     });
@@ -113,7 +113,7 @@ describe('Cron Trigger - cleanupExpired', () => {
         await kv.put(`expired-${i}`, JSON.stringify(note));
       }
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(3);
     });
 
@@ -126,7 +126,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('fresh', JSON.stringify(freshNote));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(0);
       expect(kv.delete).not.toHaveBeenCalled();
     });
@@ -147,7 +147,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       await kv.put('expired', JSON.stringify(expired));
       await kv.put('fresh', JSON.stringify(fresh));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(1);
       expect(kv.delete).toHaveBeenCalledWith('expired');
       expect(kv.delete).not.toHaveBeenCalledWith('fresh');
@@ -163,16 +163,16 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('expired', JSON.stringify(expired));
 
-      const count1 = await cleanupExpired(env as any);
+      const count1 = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count1).toBe(1);
 
-      const count2 = await cleanupExpired(env as any);
+      const count2 = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count2).toBe(0);
     });
 
     it('returns 0 on subsequent runs with no expired notes', async () => {
-      await cleanupExpired(env as any);
-      const count = await cleanupExpired(env as any);
+      await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(0);
     });
   });
@@ -180,7 +180,7 @@ describe('Cron Trigger - cleanupExpired', () => {
   describe('error handling', () => {
     it('handles KV list errors gracefully', async () => {
       kv.list.mockRejectedValueOnce(new Error('KV list failed'));
-      await expect(cleanupExpired(env as any)).rejects.toThrow('KV list failed');
+      await expect(cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0])).rejects.toThrow('KV list failed');
     });
 
     it('handles KV get errors gracefully', async () => {
@@ -193,7 +193,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       await kv.put('test', JSON.stringify(note));
       kv.get.mockRejectedValueOnce(new Error('KV get failed'));
 
-      await expect(cleanupExpired(env as any)).rejects.toThrow('KV get failed');
+      await expect(cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0])).rejects.toThrow('KV get failed');
     });
 
     it('handles KV delete errors gracefully', async () => {
@@ -206,12 +206,12 @@ describe('Cron Trigger - cleanupExpired', () => {
       await kv.put('test', JSON.stringify(note));
       kv.delete.mockRejectedValueOnce(new Error('KV delete failed'));
 
-      await expect(cleanupExpired(env as any)).rejects.toThrow('KV delete failed');
+      await expect(cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0])).rejects.toThrow('KV delete failed');
     });
 
     it('handles malformed JSON in stored notes', async () => {
       kv._store.set('corrupt', { value: 'not-json{' });
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(typeof count).toBe('number');
     });
   });
@@ -226,7 +226,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('boundary', JSON.stringify(boundary));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(1);
     });
 
@@ -239,7 +239,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('almost', JSON.stringify(almostExpired));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(0);
     });
 
@@ -252,7 +252,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('empty', JSON.stringify(empty));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(1);
     });
 
@@ -265,7 +265,7 @@ describe('Cron Trigger - cleanupExpired', () => {
       };
       await kv.put('special', JSON.stringify(special));
 
-      const count = await cleanupExpired(env as any);
+      const count = await cleanupExpired(env as unknown as Parameters<typeof cleanupExpired>[0]);
       expect(count).toBe(1);
     });
   });

@@ -60,7 +60,7 @@ describe('KvNoteStore', () => {
 
   beforeEach(() => {
     kv = createKvMock();
-    store = new KvNoteStore(kv as any);
+    store = new KvNoteStore(kv as unknown as ConstructorParameters<typeof KvNoteStore>[0]);
   });
 
   describe('constructor', () => {
@@ -69,7 +69,7 @@ describe('KvNoteStore', () => {
     });
 
     it('throws if KV binding is missing', () => {
-      expect(() => new KvNoteStore(null as any)).toThrow();
+      expect(() => new KvNoteStore(null as unknown as ConstructorParameters<typeof KvNoteStore>[0])).toThrow();
     });
   });
 

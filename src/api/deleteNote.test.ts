@@ -40,32 +40,32 @@ describe('deleteNote handler', () => {
 
   describe('happy path', () => {
     it('returns 200 with { success: true }', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
-      (store.delete as any).mockResolvedValueOnce(true);
+      vi.mocked(store.delete).mockResolvedValueOnce(true);
       const res = await handler(makeRequest());
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
     });
 
     it('calls store.delete with correct noteId', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
-      (store.delete as any).mockResolvedValueOnce(true);
+      vi.mocked(store.delete).mockResolvedValueOnce(true);
       await handler(makeRequest());
       expect(store.delete).toHaveBeenCalledWith('valid-uuid-id');
     });
 
     it('accepts deleteToken from header', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'header-token',
       });
-      (store.delete as any).mockResolvedValueOnce(true);
+      vi.mocked(store.delete).mockResolvedValueOnce(true);
       const res = await handler(makeRequest({
         body: undefined,
         headers: { 'x-delete-token': 'header-token' },
@@ -76,13 +76,13 @@ describe('deleteNote handler', () => {
 
   describe('CRITICAL: uniform 404 for all failure modes', () => {
     it('returns 404 when note never existed', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res = await handler(makeRequest());
       expect(res.status).toBe(404);
     });
 
     it('returns 404 when note is expired', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 'correct-token',
       });
@@ -91,7 +91,7 @@ describe('deleteNote handler', () => {
     });
 
     it('returns 404 when token is wrong', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
@@ -100,16 +100,16 @@ describe('deleteNote handler', () => {
     });
 
     it('returns SAME error shape for all three failure modes', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res1 = await handler(makeRequest());
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 'correct-token',
       });
       const res2 = await handler(makeRequest());
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
@@ -122,24 +122,27 @@ describe('deleteNote handler', () => {
     });
 
     it('error message does not distinguish failure modes', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res1 = await handler(makeRequest());
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 'correct-token',
       });
       const res2 = await handler(makeRequest());
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
       const res3 = await handler(makeRequest({ body: { deleteToken: 'wrong' } }));
 
-      const msg1 = ((res1.body as any).error ?? '').toLowerCase();
-      const msg2 = ((res2.body as any).error ?? '').toLowerCase();
-      const msg3 = ((res3.body as any).error ?? '').toLowerCase();
+      const body1 = res1.body as { error?: string };
+      const body2 = res2.body as { error?: string };
+      const body3 = res3.body as { error?: string };
+      const msg1 = (body1.error ?? '').toLowerCase();
+      const msg2 = (body2.error ?? '').toLowerCase();
+      const msg3 = (body3.error ?? '').toLowerCase();
       expect(msg1).toBe(msg2);
       expect(msg2).toBe(msg3);
       expect(msg1).not.toContain('expired');
@@ -147,7 +150,7 @@ describe('deleteNote handler', () => {
     });
 
     it('does not call store.delete when token is wrong', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
@@ -200,20 +203,21 @@ describe('deleteNote handler', () => {
 
   describe('error handling', () => {
     it('returns 500 when store.delete throws', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'C',
         createdAt: Date.now(), deleteToken: 'correct-token',
       });
-      (store.delete as any).mockRejectedValueOnce(new Error('DB error'));
+      vi.mocked(store.delete).mockRejectedValueOnce(new Error('DB error'));
       const res = await handler(makeRequest());
       expect(res.status).toBe(500);
     });
 
     it('returns 500 when store.get throws', async () => {
-      (store.get as any).mockRejectedValueOnce(new Error('DB error'));
+      vi.mocked(store.get).mockRejectedValueOnce(new Error('DB error'));
       const res = await handler(makeRequest());
       expect(res.status).toBe(500);
-      expect((res.body as any).error).toBe('Internal server error');
+      const body = res.body as { error?: string };
+      expect(body.error).toBe('Internal server error');
     });
   });
 });

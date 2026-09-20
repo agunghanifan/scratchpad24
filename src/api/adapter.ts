@@ -141,7 +141,7 @@ export function adaptHandler(handler: Handler): (platformReq: Request) => Promis
     let genericRes: GenericResponse;
     try {
       genericRes = await handler(genericReq);
-    } catch (error) {
+  } catch {
       // Handler crashed
       genericRes = {
         status: 500,

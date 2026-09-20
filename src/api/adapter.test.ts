@@ -9,7 +9,7 @@ function createMockHandler(response: GenericResponse): Handler {
 }
 
 describe('platform adapter', () => {
-  let adaptHandler: (handler: Handler) => (platformReq: any) => Promise<any>;
+  let adaptHandler: (handler: Handler) => (platformReq: Request) => Promise<Response>;
 
   beforeEach(async () => {
     const mod = await import('./adapter');
@@ -22,7 +22,7 @@ describe('platform adapter', () => {
       const adapted = adaptHandler(handler);
       const req = new Request('https://example.com/notes/abc-123', { method: 'GET' });
       await adapted(req);
-      const genericReq = (handler as any).mock.calls[0][0] as GenericRequest;
+      const genericReq = vi.mocked(handler).mock.calls[0][0] as GenericRequest;
       expect(genericReq.method).toBe('GET');
     });
 
@@ -31,7 +31,7 @@ describe('platform adapter', () => {
       const adapted = adaptHandler(handler);
       const req = new Request('https://example.com/notes/my-note-id', { method: 'GET' });
       await adapted(req);
-      const genericReq = (handler as any).mock.calls[0][0] as GenericRequest;
+      const genericReq = vi.mocked(handler).mock.calls[0][0] as GenericRequest;
       expect(genericReq.params.noteId).toBe('my-note-id');
     });
 
@@ -44,7 +44,7 @@ describe('platform adapter', () => {
         body: JSON.stringify({ content: 'Hello' }),
       });
       await adapted(req);
-      const genericReq = (handler as any).mock.calls[0][0] as GenericRequest;
+      const genericReq = vi.mocked(handler).mock.calls[0][0] as GenericRequest;
       expect(genericReq.body).toEqual({ content: 'Hello' });
     });
   });
@@ -163,7 +163,7 @@ describe('platform adapter', () => {
         text: async () => '',
       } as unknown as Request;
       await adapted(req);
-      const genericReq = (handler as any).mock.calls[0][0] as GenericRequest;
+      const genericReq = vi.mocked(handler).mock.calls[0][0] as GenericRequest;
       expect(genericReq.params).toEqual({});
     });
   });

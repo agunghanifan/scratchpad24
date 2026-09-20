@@ -35,7 +35,8 @@ export async function getNote(noteId: string): Promise<Note> {
   
   if (!response.ok) {
     const error = new Error(response.status === 404 ? 'Not found' : 'Failed to fetch note');
-    (error as any).status = response.status;
+    const errorWithStatus = error as Error & { status?: number };
+    errorWithStatus.status = response.status;
     throw error;
   }
   

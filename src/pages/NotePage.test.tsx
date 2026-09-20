@@ -182,10 +182,11 @@ describe('NotePage', () => {
         configurable: true,
       });
       // Mock window.location.href to include note ID
-      delete (window as any).location;
-      (window as any).location = {
-        href: 'http://localhost:3000/n/test-note-id',
-      };
+      Object.defineProperty(window, 'location', {
+        value: { href: 'http://localhost:3000/n/test-note-id' },
+        writable: true,
+        configurable: true,
+      });
       
       render(<NotePage />);
       await user.click(screen.getByRole('button', { name: /copy link/i }));

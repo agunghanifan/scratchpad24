@@ -41,29 +41,29 @@ describe('updateNote handler', () => {
 
   describe('happy path', () => {
     it('returns 200 with { success: true }', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      (store.update as any).mockResolvedValueOnce(true);
+      vi.mocked(store.update).mockResolvedValueOnce(true);
       const res = await handler(makeRequest());
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true });
     });
 
     it('calls store.update with sanitized content', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      (store.update as any).mockResolvedValueOnce(true);
+      vi.mocked(store.update).mockResolvedValueOnce(true);
       await handler(makeRequest({ body: { content: '<b>bold</b>' } }));
       expect(store.update).toHaveBeenCalledWith('valid-uuid-id', expect.not.stringContaining('<'));
     });
 
     it('accepts PATCH method', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      (store.update as any).mockResolvedValueOnce(true);
+      vi.mocked(store.update).mockResolvedValueOnce(true);
       const res = await handler(makeRequest({ method: 'PATCH' }));
       expect(res.status).toBe(200);
     });
@@ -71,13 +71,13 @@ describe('updateNote handler', () => {
 
   describe('uniform 404 for not found / expired', () => {
     it('returns 404 when note does not exist', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res = await handler(makeRequest());
       expect(res.status).toBe(404);
     });
 
     it('returns 404 when note is expired', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 't',
       });
@@ -86,9 +86,9 @@ describe('updateNote handler', () => {
     });
 
     it('returns SAME error shape for not found vs expired', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res1 = await handler(makeRequest());
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 't',
       });
@@ -122,7 +122,7 @@ describe('updateNote handler', () => {
 
   describe('payload cap', () => {
     it('returns 413 when content exceeds 100KB', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
       const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES + 1) } }));
@@ -130,10 +130,10 @@ describe('updateNote handler', () => {
     });
 
     it('accepts content exactly at 100KB', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      (store.update as any).mockResolvedValueOnce(true);
+      vi.mocked(store.update).mockResolvedValueOnce(true);
       const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES) } }));
       expect(res.status).toBe(200);
     });
@@ -166,19 +166,20 @@ describe('updateNote handler', () => {
 
   describe('error handling', () => {
     it('returns 500 when store.update throws', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      (store.update as any).mockRejectedValueOnce(new Error('DB error'));
+      vi.mocked(store.update).mockRejectedValueOnce(new Error('DB error'));
       const res = await handler(makeRequest());
       expect(res.status).toBe(500);
     });
 
     it('returns 500 when store.get throws', async () => {
-      (store.get as any).mockRejectedValueOnce(new Error('DB error'));
+      vi.mocked(store.get).mockRejectedValueOnce(new Error('DB error'));
       const res = await handler(makeRequest());
       expect(res.status).toBe(500);
-      expect((res.body as any).error).toBe('Internal server error');
+      const body = res.body as { error?: string };
+      expect(body.error).toBe('Internal server error');
     });
   });
 });

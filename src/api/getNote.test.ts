@@ -39,7 +39,7 @@ describe('getNote handler', () => {
 
   describe('happy path', () => {
     it('returns 200 with note data', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Hello', createdAt: Date.now(), deleteToken: 't',
       });
       const res = await handler(makeRequest());
@@ -51,32 +51,34 @@ describe('getNote handler', () => {
     });
 
     it('does NOT expose deleteToken', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Secret', createdAt: Date.now(), deleteToken: 'secret',
       });
       const res = await handler(makeRequest());
-      expect((res.body as any).deleteToken).toBeUndefined();
+      const body = res.body as { deleteToken?: string };
+      expect(body.deleteToken).toBeUndefined();
     });
 
     it('calculates expiresAt as createdAt + 24h', async () => {
       const createdAt = Date.now();
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Hi', createdAt, deleteToken: 't',
       });
       const res = await handler(makeRequest());
-      expect((res.body as any).expiresAt).toBe(createdAt + 24 * 60 * 60 * 1000);
+      const body = res.body as { expiresAt?: number };
+      expect(body.expiresAt).toBe(createdAt + 24 * 60 * 60 * 1000);
     });
   });
 
   describe('CRITICAL: uniform 404 responses', () => {
     it('returns 404 when note never existed', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res = await handler(makeRequest({ params: { noteId: 'never-existed' } }));
       expect(res.status).toBe(404);
     });
 
     it('returns 404 when note is expired', async () => {
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 't',
       });
@@ -85,10 +87,10 @@ describe('getNote handler', () => {
     });
 
     it('returns SAME error shape for not found vs expired', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res1 = await handler(makeRequest({ params: { noteId: 'never-existed' } }));
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 't',
       });
@@ -99,17 +101,19 @@ describe('getNote handler', () => {
     });
 
     it('error message does not distinguish not found from expired', async () => {
-      (store.get as any).mockResolvedValueOnce(null);
+      vi.mocked(store.get).mockResolvedValueOnce(null);
       const res1 = await handler(makeRequest({ params: { noteId: 'never-existed' } }));
 
-      (store.get as any).mockResolvedValueOnce({
+      vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Expired',
         createdAt: Date.now() - (25 * 60 * 60 * 1000), deleteToken: 't',
       });
       const res2 = await handler(makeRequest());
 
-      const msg1 = ((res1.body as any).error ?? '').toLowerCase();
-      const msg2 = ((res2.body as any).error ?? '').toLowerCase();
+      const body1 = res1.body as { error?: string };
+      const body2 = res2.body as { error?: string };
+      const msg1 = (body1.error ?? '').toLowerCase();
+      const msg2 = (body2.error ?? '').toLowerCase();
       expect(msg1).toBe(msg2);
       expect(msg1).not.toContain('expired');
     });
@@ -152,7 +156,7 @@ describe('getNote handler', () => {
 
   describe('error handling', () => {
     it('returns 500 when store.get throws', async () => {
-      (store.get as any).mockRejectedValueOnce(new Error('DB error'));
+      vi.mocked(store.get).mockRejectedValueOnce(new Error('DB error'));
       const res = await handler(makeRequest());
       expect(res.status).toBe(500);
     });

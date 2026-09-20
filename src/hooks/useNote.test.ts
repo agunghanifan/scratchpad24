@@ -86,8 +86,8 @@ describe('useNote', () => {
 
   describe('error state', () => {
     it('handles 404 for expired note', async () => {
-      const error = new Error('Not found');
-      (error as any).status = 404;
+      const error = new Error('Not found') as Error & { status?: number };
+      error.status = 404;
       mockGetNote.mockRejectedValue(error);
 
       const { result } = renderHook(() => useNote('expired-id'));
@@ -99,8 +99,8 @@ describe('useNote', () => {
     });
 
     it('handles 404 for non-existent note', async () => {
-      const error = new Error('Not found');
-      (error as any).status = 404;
+      const error = new Error('Not found') as Error & { status?: number };
+      error.status = 404;
       mockGetNote.mockRejectedValue(error);
 
       const { result } = renderHook(() => useNote('nonexistent-id'));
@@ -159,8 +159,8 @@ describe('useNote', () => {
 
   describe('uniform error handling', () => {
     it('same error shape for expired and non-existent notes', async () => {
-      const error = new Error('Not found');
-      (error as any).status = 404;
+      const error = new Error('Not found') as Error & { status?: number };
+      error.status = 404;
       mockGetNote.mockRejectedValue(error);
 
       const { result: result1 } = renderHook(() => useNote('expired-id'));

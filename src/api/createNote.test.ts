@@ -50,7 +50,7 @@ describe('createNote handler', () => {
     it('calls store.create with sanitized content', async () => {
       await handler(makeRequest({ body: { content: '<script>alert(1)</script>' } }));
       expect(store.create).toHaveBeenCalledTimes(1);
-      const stored = (store.create as any).mock.calls[0][0] as NoteRecord;
+      const stored = vi.mocked(store.create).mock.calls[0][0] as NoteRecord;
       expect(stored.content).not.toContain('<');
     });
 
@@ -60,7 +60,7 @@ describe('createNote handler', () => {
       expect(res.body).toHaveProperty('noteId');
       expect(res.body).toHaveProperty('deleteToken');
       expect(store.create).toHaveBeenCalledTimes(1);
-      const stored = (store.create as any).mock.calls[0][0] as NoteRecord;
+      const stored = vi.mocked(store.create).mock.calls[0][0] as NoteRecord;
       expect(stored.content).toBe('');
     });
 
@@ -113,7 +113,7 @@ describe('createNote handler', () => {
   describe('security', () => {
     it('strips HTML tags from content', async () => {
       await handler(makeRequest({ body: { content: '<b>bold</b>' } }));
-      const stored = (store.create as any).mock.calls[0][0] as NoteRecord;
+      const stored = vi.mocked(store.create).mock.calls[0][0] as NoteRecord;
       expect(stored.content).not.toContain('<');
       expect(stored.content).not.toContain('>');
     });
@@ -121,15 +121,16 @@ describe('createNote handler', () => {
 
   describe('error handling', () => {
     it('returns 500 when store.create throws', async () => {
-      (store.create as any).mockRejectedValueOnce(new Error('Storage failure'));
+      vi.mocked(store.create).mockRejectedValueOnce(new Error('Storage failure'));
       const res = await handler(makeRequest({ body: { content: 'Test' } }));
       expect(res.status).toBe(500);
     });
 
     it('does not leak internal error details', async () => {
-      (store.create as any).mockRejectedValueOnce(new Error('Internal DB error'));
+      vi.mocked(store.create).mockRejectedValueOnce(new Error('Internal DB error'));
       const res = await handler(makeRequest({ body: { content: 'Test' } }));
-      const msg = ((res.body as any).error ?? '').toLowerCase();
+      const body = res.body as { error?: string };
+      const msg = (body.error ?? '').toLowerCase();
       expect(msg).not.toContain('internal db');
     });
   });

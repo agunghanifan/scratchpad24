@@ -56,7 +56,7 @@ Create these files to make tests pass:
 - `src/api/getNote.ts` — export `createGetNoteHandler(store: NoteStore): Handler`
 - `src/api/updateNote.ts` — export `createUpdateNoteHandler(store: NoteStore): Handler`
 - `src/api/deleteNote.ts` — export `createDeleteNoteHandler(store: NoteStore): Handler`
-- `src/api/adapter.ts` — export `adaptHandler(handler: Handler): (req: any) => Promise<any>`
+- `src/api/adapter.ts` — export `adaptHandler(handler: Handler): (req: Request) => Promise<Response>`
 
 ## Security Requirements
 

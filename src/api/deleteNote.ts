@@ -18,8 +18,8 @@ function safeCompareTokens(a: string, b: string): boolean {
   
   if (bufA.length !== bufB.length) {
     // Still perform comparison to maintain constant time, then return false
-    let result = 0;
-    for (let i = 0; i < bufA.length; i++) result |= bufA[i] ^ bufA[i];
+    let _result = 0;
+    for (let i = 0; i < bufA.length; i++) _result |= bufA[i] ^ bufB[i];
     return false;
   }
   
