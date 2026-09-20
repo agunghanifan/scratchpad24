@@ -10,9 +10,21 @@ A distraction-free text pad with **no accounts, no login, no tracking**. Notes a
 - **Auto-save** — changes are saved automatically as you type.
 - **Live counters** — character and word count displayed in real time.
 - **100 KB hard cap** — inline error if exceeded, no silent truncation.
-- **Link-based access** — share the URL to collaborate; anyone with the link can view/edit.
+- **Link-based access** — share the URL to let others view; only the creator can edit or delete.
 - **Delete confirmation** — explicit confirmation required before deletion.
 - **No PII collection** — no analytics, no tracking, no third-party scripts.
+
+
+## Ownership & Access Control
+
+Each pad has a single owner — the browser that created it. Ownership is tracked via a cryptographic token stored in `localStorage`.
+
+- **Owner (creator browser)**: Can edit content, delete the pad, and see the "Copy link" button
+- **Non-owners (shared link)**: Read-only access; textarea is disabled, delete button hidden
+- **Token validation**: Both update and delete operations require the correct `deleteToken` on the backend
+- **Security**: Tokens are compared using constant-time comparison to prevent timing attacks
+
+When you create a pad, the token is automatically saved to your browser's `localStorage`. If you clear your browser data or switch browsers, you'll lose edit/delete access to pads you created.
 
 ## Tech Stack
 
