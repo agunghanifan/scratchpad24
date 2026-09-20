@@ -55,6 +55,22 @@ describe('Editor', () => {
       render(<Editor content="Hello world foo" onChange={vi.fn()} onSave={vi.fn()} />);
       expect(screen.getByText(/3 words/i)).toBeInTheDocument();
     });
+
+    it('updates counter as user types', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onChange = vi.fn();
+      render(<Editor content="" onChange={onChange} onSave={vi.fn()} />);
+      await user.type(screen.getByRole('textbox', { name: /note content/i }), 'Hi');
+      expect(screen.getByText(/2 characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 word/i)).toBeInTheDocument();
+    });
+
+    it('shows 0 characters and 0 words for empty content', () => {
+      render(<Editor content="" onChange={vi.fn()} onSave={vi.fn()} />);
+      expect(screen.getByText(/0 characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/0 words/i)).toBeInTheDocument();
+    });
+  });
   describe('100KB payload cap', () => {
     it('shows inline error when content exceeds 100KB', () => {
       render(<Editor content={'a'.repeat(MAX_BYTES + 1)} onChange={vi.fn()} onSave={vi.fn()} />);
@@ -152,21 +168,44 @@ describe('Editor', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
   });
+  describe('readOnly prop', () => {
+    it('sets readOnly attribute on textarea when readOnly=true', () => {
+      render(<Editor content="test" onChange={vi.fn()} onSave={vi.fn()} readOnly={true} />);
+      const textarea = screen.getByRole('textbox', { name: /note content/i });
+      expect(textarea).toHaveAttribute('readOnly');
+    });
+
+    it('does not call onChange when readOnly=true and user types', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onChange = vi.fn();
+      render(<Editor content="initial" onChange={onChange} onSave={vi.fn()} readOnly={true} />);
+      const textarea = screen.getByRole('textbox', { name: /note content/i });
+      await user.type(textarea, 'new text');
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('calls onChange when readOnly=false and user types', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const onChange = vi.fn();
+      render(<Editor content="" onChange={onChange} onSave={vi.fn()} readOnly={false} />);
+      const textarea = screen.getByRole('textbox', { name: /note content/i });
+      await user.type(textarea, 'Hello');
+      expect(onChange).toHaveBeenCalled();
+    });
+
+    it('displays character and word counters in readOnly mode', () => {
+      render(<Editor content="Hello world" onChange={vi.fn()} onSave={vi.fn()} readOnly={true} />);
+      expect(screen.getByText(/11 characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/2 words/i)).toBeInTheDocument();
+    });
+
+    it('displays character and word counters in editable mode', () => {
+      render(<Editor content="Hello world" onChange={vi.fn()} onSave={vi.fn()} readOnly={false} />);
+      expect(screen.getByText(/11 characters/i)).toBeInTheDocument();
+      expect(screen.getByText(/2 words/i)).toBeInTheDocument();
+    });
+  });
 });
 
 
-    it('updates counter as user types', async () => {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      const onChange = vi.fn();
-      render(<Editor content="" onChange={onChange} onSave={vi.fn()} />);
-      await user.type(screen.getByRole('textbox', { name: /note content/i }), 'Hi');
-      expect(screen.getByText(/2 characters/i)).toBeInTheDocument();
-      expect(screen.getByText(/1 word/i)).toBeInTheDocument();
-    });
 
-    it('shows 0 characters and 0 words for empty content', () => {
-      render(<Editor content="" onChange={vi.fn()} onSave={vi.fn()} />);
-      expect(screen.getByText(/0 characters/i)).toBeInTheDocument();
-      expect(screen.getByText(/0 words/i)).toBeInTheDocument();
-    });
-  });

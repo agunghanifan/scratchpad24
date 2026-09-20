@@ -88,7 +88,7 @@ describe('API client', () => {
         ok: true,
         json: async () => ({ success: true }),
       });
-      const result = await updateNote('abc', 'new content');
+      const result = await updateNote('abc', 'new content', 'test-token');
       expect(result).toEqual({ success: true });
     });
 
@@ -97,7 +97,7 @@ describe('API client', () => {
         ok: false,
         statusText: 'Not found',
       });
-      await expect(updateNote('abc', 'content')).rejects.toThrow('Failed to update note');
+      await expect(updateNote('abc', 'content', 'test-token')).rejects.toThrow('Failed to update note');
     });
   });
 

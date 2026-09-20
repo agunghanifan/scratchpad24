@@ -11,9 +11,11 @@ import styles from './NotePage.module.css';
 export default function NotePage() {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
+  const deleteToken = localStorage.getItem('deleteToken:' + noteId) || '';
+  const isOwner = deleteToken.length > 0;
   const { note, loading, error } = useNote(noteId || '');
   const [content, setContent] = useState(note?.content ?? '');
-  const { status: saveStatus } = useAutosave(noteId || '', content);
+  const { status: saveStatus } = useAutosave(noteId || '', content, deleteToken || null);
 
   useEffect(() => {
     if (note) {
@@ -66,15 +68,16 @@ export default function NotePage() {
         content={content}
         onChange={setContent}
         onSave={setContent}
+        readOnly={!isOwner}
       />
       <div className={styles.actions}>
         <button onClick={handleCopyLink} className={styles.copyButton}>
           Copy link
         </button>
-        <DeleteButton onDelete={handleDelete} />
+        {isOwner && <DeleteButton onDelete={handleDelete} />}
       </div>
       <p className={styles.warning}>
-        Warning: Anyone with this link can edit or delete this note
+        {isOwner ? 'Warning: Anyone with this link can view this note' : 'This note is read-only. Only the creator can edit or delete it.'}
       </p>
       {saveStatus === 'saving' && <div className={styles.status}>Saving...</div>}
       {saveStatus === 'saved' && <div className={styles.status}>Saved</div>}

@@ -43,11 +43,11 @@ export async function getNote(noteId: string): Promise<Note> {
   return response.json();
 }
 
-export async function updateNote(noteId: string, content: string): Promise<{ success: boolean }> {
+export async function updateNote(noteId: string, content: string, deleteToken: string): Promise<{ success: boolean }> {
   const response = await fetch(`${API_BASE}/notes/${noteId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, deleteToken }),
   });
   
   if (!response.ok) {

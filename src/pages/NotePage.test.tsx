@@ -198,7 +198,7 @@ describe('NotePage', () => {
 
     it('shows warning about link sharing risk', async () => {
       render(<NotePage />);
-      expect(screen.getByText(/anyone with this link can edit or delete/i)).toBeInTheDocument();
+      expect(screen.getByText(/anyone with this link can view/i)).toBeInTheDocument();
     });
   });
 
@@ -248,19 +248,6 @@ describe('NotePage', () => {
       });
     });
 
-    it('uses empty string when deleteToken is not in localStorage', async () => {
-      // Test the || '' fallback at line 26
-      Storage.prototype.getItem = vi.fn().mockReturnValue(null);
-      const user = userEvent.setup();
-      render(<NotePage />);
-      
-      await user.click(screen.getByRole('button', { name: /delete now/i }));
-      await user.click(screen.getByRole('button', { name: /confirm|yes|delete/i }));
-      
-      await waitFor(() => {
-        expect(mockDeleteNote).toHaveBeenCalledWith('test-note-id', '');
-      });
-    });
   });
 
   describe('security', () => {
@@ -281,6 +268,58 @@ describe('NotePage', () => {
       const scripts = document.querySelectorAll('script');
       scripts.forEach((script) => {
         expect(script.textContent).not.toMatch(/analytics|tracking|gtag|ga\(/i);
+      });
+    });
+  });
+
+  describe('ownership detection', () => {
+    it('renders DeleteButton when localStorage has deleteToken (owner)', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue('test-delete-token');
+      render(<NotePage />);
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete now/i })).toBeInTheDocument();
+      });
+    });
+
+    it('does not render DeleteButton when localStorage has no token (non-owner)', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue(null);
+      render(<NotePage />);
+      await waitFor(() => {
+        expect(screen.queryByRole('button', { name: /delete now/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('Editor is not readOnly when user is owner (has token)', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue('test-delete-token');
+      render(<NotePage />);
+      await waitFor(() => {
+        const textarea = screen.getByRole('textbox', { name: /note content/i });
+        expect(textarea).not.toHaveAttribute('readOnly');
+      });
+    });
+
+    it('Editor is readOnly when user is not owner (no token)', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue(null);
+      render(<NotePage />);
+      await waitFor(() => {
+        const textarea = screen.getByRole('textbox', { name: /note content/i });
+        expect(textarea).toHaveAttribute('readOnly');
+      });
+    });
+
+    it('owner sees warning about link sharing', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue('test-delete-token');
+      render(<NotePage />);
+      await waitFor(() => {
+        expect(screen.getByText(/anyone with this link can view/i)).toBeInTheDocument();
+      });
+    });
+
+    it('non-owner sees read-only warning', async () => {
+      Storage.prototype.getItem = vi.fn().mockReturnValue(null);
+      render(<NotePage />);
+      await waitFor(() => {
+        expect(screen.getByText(/read-only/i)).toBeInTheDocument();
       });
     });
   });

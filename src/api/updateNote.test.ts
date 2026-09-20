@@ -21,7 +21,7 @@ function makeRequest(overrides: Partial<GenericRequest> = {}): GenericRequest {
   return {
     method: 'PUT',
     params: { noteId: 'valid-uuid-id' },
-    body: { content: 'Updated content' },
+    body: { content: 'Updated content', deleteToken: 't' },
     headers: { 'content-type': 'application/json' },
     ...overrides,
   };
@@ -55,7 +55,7 @@ describe('updateNote handler', () => {
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
       vi.mocked(store.update).mockResolvedValueOnce(true);
-      await handler(makeRequest({ body: { content: '<b>bold</b>' } }));
+      await handler(makeRequest({ body: { content: '<b>bold</b>', deleteToken: 't' } }));
       expect(store.update).toHaveBeenCalledWith('valid-uuid-id', expect.not.stringContaining('<'));
     });
 
@@ -120,12 +120,79 @@ describe('updateNote handler', () => {
     });
   });
 
+  describe('token validation', () => {
+    it('returns 400 when deleteToken is missing from body', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'correct-token',
+      });
+      const res = await handler(makeRequest({ body: { content: 'New content' } }));
+      expect(res.status).toBe(400);
+      const body = res.body as { error?: string };
+      expect(body.error).toBe('Delete token is required');
+    });
+
+    it('returns 400 when deleteToken is empty string', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'correct-token',
+      });
+      const res = await handler(makeRequest({ body: { content: 'New content', deleteToken: '' } }));
+      expect(res.status).toBe(400);
+      const body = res.body as { error?: string };
+      expect(body.error).toBe('Delete token is required');
+    });
+
+    it('returns 404 when deleteToken is wrong (uniform with not-found)', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'correct-token',
+      });
+      const res = await handler(makeRequest({ body: { content: 'New content', deleteToken: 'wrong-token' } }));
+      expect(res.status).toBe(404);
+      const body = res.body as { error?: string };
+      expect(body.error).toBe('Not found');
+    });
+
+    it('returns 200 when deleteToken is valid', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'correct-token',
+      });
+      vi.mocked(store.update).mockResolvedValueOnce(true);
+      const res = await handler(makeRequest({ body: { content: 'New content', deleteToken: 'correct-token' } }));
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+    });
+
+    it('accepts deleteToken from x-delete-token header', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'header-token',
+      });
+      vi.mocked(store.update).mockResolvedValueOnce(true);
+      const res = await handler(makeRequest({
+        body: { content: 'New content' },
+        headers: { 'x-delete-token': 'header-token' }
+      }));
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true });
+    });
+
+    it('prefers body token over header token', async () => {
+      vi.mocked(store.get).mockResolvedValueOnce({
+        id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 'body-token',
+      });
+      vi.mocked(store.update).mockResolvedValueOnce(true);
+      const res = await handler(makeRequest({
+        body: { content: 'New content', deleteToken: 'body-token' },
+        headers: { 'x-delete-token': 'header-token' }
+      }));
+      expect(res.status).toBe(200);
+    });
+  });
+
   describe('payload cap', () => {
     it('returns 413 when content exceeds 100KB', async () => {
       vi.mocked(store.get).mockResolvedValueOnce({
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
-      const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES + 1) } }));
+      const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES + 1), deleteToken: 't' } }));
       expect(res.status).toBe(413);
     });
 
@@ -134,7 +201,7 @@ describe('updateNote handler', () => {
         id: 'valid-uuid-id', content: 'Old', createdAt: Date.now(), deleteToken: 't',
       });
       vi.mocked(store.update).mockResolvedValueOnce(true);
-      const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES) } }));
+      const res = await handler(makeRequest({ body: { content: 'x'.repeat(MAX_PAYLOAD_BYTES), deleteToken: 't' } }));
       expect(res.status).toBe(200);
     });
   });

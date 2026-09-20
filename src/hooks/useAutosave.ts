@@ -11,7 +11,7 @@ interface UseAutosaveResult {
   error: Error | null;
 }
 
-export default function useAutosave(noteId: string, content: string): UseAutosaveResult {
+export default function useAutosave(noteId: string, content: string, deleteToken: string | null): UseAutosaveResult {
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -21,20 +21,20 @@ export default function useAutosave(noteId: string, content: string): UseAutosav
   noteIdRef.current = noteId;
 
   useEffect(() => {
+    // Don't save if not owner
+    if (!deleteToken) return;
     // Don't save empty content
     if (!content) return;
     // Don't save content exceeding 100KB
     if (new TextEncoder().encode(content).length > MAX_BYTES) return;
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
+    clearTimeout(timerRef.current!);
 
     timerRef.current = setTimeout(async () => {
       try {
         setStatus('saving');
         setError(null);
-        await updateNote(noteIdRef.current, contentRef.current);
+        await updateNote(noteIdRef.current, contentRef.current, deleteToken);
         setStatus('saved');
       } catch (err) {
         const saveError = err instanceof Error ? err : new Error('Save failed');
@@ -44,11 +44,9 @@ export default function useAutosave(noteId: string, content: string): UseAutosav
     }, DEBOUNCE_MS);
 
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      clearTimeout(timerRef.current!);
     };
-  }, [content]);
+  }, [content, deleteToken]);
 
   return { status, error };
 }

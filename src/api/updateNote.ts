@@ -1,7 +1,7 @@
 /**
  * updateNote API handler — platform-agnostic.
  * PUT/PATCH /notes/:noteId — updates a note's content.
- * CRITICAL: Uniform 404 for not-found and expired (no information leakage).
+ * CRITICAL: Uniform 404 for not-found, expired, and wrong-token (no information leakage).
  */
 import type { NoteStore } from '../storage/NoteStore';
 import type { GenericRequest, GenericResponse, Handler } from './types';
@@ -24,6 +24,47 @@ function isValidNoteId(id: string | undefined): boolean {
 
 function byteLength(s: string): number {
   return new TextEncoder().encode(s).length;
+}
+
+/**
+ * Constant-time comparison for delete tokens to prevent timing attacks.
+ * Uses a portable XOR-based approach that works in Cloudflare Workers.
+ */
+function safeCompareTokens(a: string, b: string): boolean {
+  const enc = new TextEncoder();
+  const bufA = enc.encode(a);
+  const bufB = enc.encode(b);
+
+  if (bufA.length !== bufB.length) {
+    // Still perform comparison to maintain constant time, then return false
+    let _result = 0;
+    for (let i = 0; i < bufA.length; i++) _result |= bufA[i] ^ bufB[i];
+    return false;
+  }
+
+  let result = 0;
+  for (let i = 0; i < bufA.length; i++) result |= bufA[i] ^ bufB[i];
+  return result === 0;
+}
+
+/**
+ * Extracts delete token from request body or header.
+ * Body takes precedence, but header is also supported.
+ */
+function extractDeleteToken(req: GenericRequest): string | undefined {
+  // Try body first
+  const body = req.body as Record<string, unknown> | undefined;
+  if (body && typeof body === 'object' && typeof body.deleteToken === 'string') {
+    return body.deleteToken;
+  }
+
+  // Try header
+  const headerToken = req.headers['x-delete-token'];
+  if (typeof headerToken === 'string') {
+    return headerToken;
+  }
+
+  return undefined;
 }
 
 /**
@@ -72,6 +113,17 @@ export function createUpdateNoteHandler(store: NoteStore): Handler {
 
     // Uniform 404: treat not-found and expired identically
     if (!note || isExpired(note.createdAt)) {
+      return NOT_FOUND_RESPONSE;
+    }
+
+    // Extract and validate delete token
+    const deleteToken = extractDeleteToken(req);
+    if (!deleteToken || deleteToken.trim().length === 0) {
+      return jsonResponse(400, { error: 'Delete token is required' });
+    }
+
+    // Uniform 404: wrong token looks identical to not-found
+    if (!safeCompareTokens(deleteToken, note.deleteToken)) {
       return NOT_FOUND_RESPONSE;
     }
 
