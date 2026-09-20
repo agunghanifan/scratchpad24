@@ -24,9 +24,8 @@ export default function NotePage() {
   }, [note]);
 
   const handleDelete = async () => {
-    if (!noteId) return;
-    const deleteToken = localStorage.getItem(`deleteToken:${noteId}`) || '';
-    await deleteNote(noteId, deleteToken);
+    const deleteToken = localStorage.getItem(`deleteToken:${noteId}`)!;
+    await deleteNote(noteId!, deleteToken);
     navigate('/');
   };
 

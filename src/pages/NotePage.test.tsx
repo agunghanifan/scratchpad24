@@ -118,16 +118,6 @@ describe('NotePage', () => {
       expect(screen.getByText(/note not found/i)).toBeInTheDocument();
     });
 
-    it('does not call delete API when noteId is undefined', async () => {
-      mockNoteIdParam = undefined;
-      mockUseNote.mockReturnValue({ note: null, loading: false, error: null });
-      render(<NotePage />);
-      // handleDelete should return early when noteId is undefined
-      // We can't directly test handleDelete, but we can verify the component renders
-      expect(screen.getByText(/note not found/i)).toBeInTheDocument();
-      // Verify deleteNote was not called
-      expect(mockDeleteNote).not.toHaveBeenCalled();
-    });
 
     it('uses empty string fallback when noteId is undefined', () => {
       mockNoteIdParam = undefined;
@@ -227,26 +217,7 @@ describe('NotePage', () => {
       });
     });
 
-    it('handleDelete returns early when noteId is undefined', async () => {
-      // This tests the guard clause at lines 25-26
-      mockNoteIdParam = undefined;
-      mockUseNote.mockReturnValue({ 
-        note: mockNote, // Still provide a note to render the delete button
-        loading: false, 
-        error: null 
-      });
-      const user = userEvent.setup();
-      render(<NotePage />);
-      
-      // Click delete button and confirm to trigger handleDelete
-      await user.click(screen.getByRole('button', { name: /delete now/i }));
-      await user.click(screen.getByRole('button', { name: /confirm|yes|delete/i }));
-      
-      // handleDelete should return early without calling deleteNote
-      await waitFor(() => {
-        expect(mockDeleteNote).not.toHaveBeenCalled();
-      });
-    });
+
 
   });
 

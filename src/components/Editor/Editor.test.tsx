@@ -3,7 +3,7 @@
  * Plain text editor with character/word counter, 100KB cap, debounced save.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Editor from './Editor';
 
@@ -181,6 +181,16 @@ describe('Editor', () => {
       render(<Editor content="initial" onChange={onChange} onSave={vi.fn()} readOnly={true} />);
       const textarea = screen.getByRole('textbox', { name: /note content/i });
       await user.type(textarea, 'new text');
+      expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('exercises handleChange readOnly guard via fireEvent.change', () => {
+      const onChange = vi.fn();
+      render(<Editor content="initial" onChange={onChange} onSave={vi.fn()} readOnly={true} />);
+      const textarea = screen.getByRole('textbox', { name: /note content/i });
+      // fireEvent.change forces a change event even on a readOnly textarea,
+      // exercising the `if (readOnly) return;` guard at Editor.tsx:51.
+      fireEvent.change(textarea, { target: { value: 'new value' } });
       expect(onChange).not.toHaveBeenCalled();
     });
 
