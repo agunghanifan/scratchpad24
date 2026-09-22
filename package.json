@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && vite build --ssr src/server.ts --outDir dist-server",
+    "start": "node dist-server/server.js",
     "test": "vitest run",
     "test:scaffold": "vitest run tests/",
     "test:coverage": "vitest run --coverage src/",

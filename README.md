@@ -69,7 +69,8 @@ The app runs at `http://localhost:5173` by default. The in-memory store is used 
 | Command | Description |
 |---------|-------------|
 | `npm run dev` | Start Vite dev server with hot reload |
-| `npm run build` | Type-check and build for production |
+| `npm run build` | Type-check, build frontend, and bundle the Node server |
+| `npm start` | Run the production Node server (serves `dist/` + `/api/*`) |
 | `npm test` | Run all tests (Vitest) |
 | `npm run test:coverage` | Run tests with coverage report |
 | `npm run lint` | Lint source files (ESLint) |
@@ -86,6 +87,7 @@ src/
 │   ├── getNote.ts        # GET  /api/notes/:noteId
 │   ├── updateNote.ts     # PUT  /api/notes/:noteId
 │   ├── deleteNote.ts     # DELETE /api/notes/:noteId
+│   ├── router.ts         # Shared route matching + rate limiting + headers
 │   ├── adapter.ts        # Platform adapter (Request/Response ↔ GenericRequest/GenericResponse)
 │   ├── client.ts         # Frontend API client
 │   ├── cron.ts           # Cron trigger for expired note cleanup
@@ -112,14 +114,18 @@ src/
 │   ├── NotePage.tsx      # Note editor page
 │   └── PrivacyPage.tsx   # Privacy & Terms (placeholder MVP language)
 ├── utils/
-│   └── sanitize.ts       # HTML sanitization (strip < > characters)
+│   ├── sanitize.ts       # HTML sanitization (strip < > characters)
+│   ├── limits.ts         # 100KB payload cap + byteLength
+│   ├── tokens.ts         # Portable constant-time token comparison
+│   └── validate.ts       # Note ID validation
+├── server.ts               # Node production server (dist/ + /api/*)
 ├── App.tsx               # Root component with routing
 └── main.tsx              # Entry point
 vite-plugin-api.ts        # Dev-server middleware: /api/* → handlers + InMemoryNoteStore
 vite.config.ts            # Vite + Vitest config (jsdom env, 100% coverage thresholds)
 tests/
 ├── scaffold.test.ts      # Scaffold validation tests
-└── e2e/                  # End-to-end tests (empty — planned, not yet implemented)
+└── e2e/                  # End-to-end tests
 ```
 
 ### Key Design Principles
@@ -399,27 +405,27 @@ Self-hosted option for full control over infrastructure.
 ##### Dockerfile
 
 ```dockerfile
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runtime
+FROM node:22-alpine AS runtime
 WORKDIR /app
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY package*.json ./
-
 ENV NODE_ENV=production
 ENV RATE_LIMIT_CREATE=10
 ENV RATE_LIMIT_READ=30
 ENV RATE_LIMIT_UPDATE=60
 ENV RATE_LIMIT_DELETE=10
 
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/dist-server ./dist-server
+COPY --from=build /app/package.json ./package.json
+
 EXPOSE 3000
-CMD ["node", "dist/server.js"]
+CMD ["node", "dist-server/server.js"]
 ```
 
 ##### Build and Run
@@ -491,11 +497,13 @@ npm ci
 npm run build
 
 # Set environment variables
-export REDIS_URL=redis://localhost:6379
 export RATE_LIMIT_CREATE=10
+export RATE_LIMIT_READ=30
+export RATE_LIMIT_UPDATE=60
+export RATE_LIMIT_DELETE=10
 
-# Run
-node dist/server.js
+# Run the production server (serves dist/ + /api/*)
+node dist-server/server.js
 ```
 
 #### Verify Deployment

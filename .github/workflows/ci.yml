@@ -31,6 +31,9 @@ jobs:
       - name: Test with coverage
         run: npm run test:coverage
 
+      - name: Build (frontend + server bundle)
+        run: npm run build
+
       - name: Upload coverage report
         uses: actions/upload-artifact@v5
         if: always()

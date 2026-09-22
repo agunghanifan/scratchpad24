@@ -5,10 +5,9 @@
  */
 import type { NoteStore } from '../storage/NoteStore';
 import type { GenericRequest, GenericResponse, Handler } from './types';
-import { isExpired } from '../core/expiry';
-import { sanitizeContent } from '../utils/sanitize';
-
-const MAX_PAYLOAD_BYTES = 100 * 1024; // 100KB
+import { updateNote } from '../core/noteService';
+import { MAX_PAYLOAD_BYTES, byteLength } from '../utils/limits';
+import { isValidNoteId } from '../utils/validate';
 
 const JSON_HEADERS: Record<string, string> = { 'content-type': 'application/json' };
 
@@ -17,35 +16,6 @@ function jsonResponse(status: number, body: unknown): GenericResponse {
 }
 
 const NOT_FOUND_RESPONSE: GenericResponse = jsonResponse(404, { error: 'Not found' });
-
-function isValidNoteId(id: string | undefined): boolean {
-  return typeof id === 'string' && id.length > 0 && /^[a-zA-Z0-9_-]+$/.test(id);
-}
-
-function byteLength(s: string): number {
-  return new TextEncoder().encode(s).length;
-}
-
-/**
- * Constant-time comparison for delete tokens to prevent timing attacks.
- * Uses a portable XOR-based approach that works in Cloudflare Workers.
- */
-function safeCompareTokens(a: string, b: string): boolean {
-  const enc = new TextEncoder();
-  const bufA = enc.encode(a);
-  const bufB = enc.encode(b);
-
-  if (bufA.length !== bufB.length) {
-    // Still perform comparison to maintain constant time, then return false
-    let _result = 0;
-    for (let i = 0; i < bufA.length; i++) _result |= bufA[i] ^ bufB[i];
-    return false;
-  }
-
-  let result = 0;
-  for (let i = 0; i < bufA.length; i++) result |= bufA[i] ^ bufB[i];
-  return result === 0;
-}
 
 /**
  * Extracts delete token from request body or header.
@@ -103,36 +73,19 @@ export function createUpdateNoteHandler(store: NoteStore): Handler {
       return jsonResponse(413, { error: 'Content exceeds maximum size of 100KB' });
     }
 
-    // Fetch note to check existence and expiry
-    let note;
-    try {
-      note = await store.get(noteId!);
-    } catch {
-      return jsonResponse(500, { error: 'Internal server error' });
-    }
-
-    // Uniform 404: treat not-found and expired identically
-    if (!note || isExpired(note.createdAt)) {
-      return NOT_FOUND_RESPONSE;
-    }
-
     // Extract and validate delete token
     const deleteToken = extractDeleteToken(req);
     if (!deleteToken || deleteToken.trim().length === 0) {
       return jsonResponse(400, { error: 'Delete token is required' });
     }
 
-    // Uniform 404: wrong token looks identical to not-found
-    if (!safeCompareTokens(deleteToken, note.deleteToken)) {
-      return NOT_FOUND_RESPONSE;
-    }
-
-    // Sanitize content
-    const sanitized = sanitizeContent(content);
-
-    // Update note
+    // Delegate to core service: uniform 404 for not-found, expired,
+    // and wrong-token (no information leakage)
     try {
-      await store.update(noteId!, sanitized);
+      const updated = await updateNote(store, noteId!, content, deleteToken);
+      if (!updated) {
+        return NOT_FOUND_RESPONSE;
+      }
     } catch {
       return jsonResponse(500, { error: 'Internal server error' });
     }

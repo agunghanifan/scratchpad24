@@ -2,51 +2,21 @@
  * Pure business logic for note operations.
  * Platform-agnostic core — no storage implementation details.
  */
-import { timingSafeEqual } from 'node:crypto';
 import { generateNoteId, generateDeleteToken } from './idGenerator';
 import { isExpired } from './expiry';
 import type { NoteRecord, NoteStore } from '../storage/NoteStore';
-
-const MAX_PAYLOAD_BYTES = 100 * 1024; // 100KB
-
-/**
- * Sanitizes content to plain text by stripping HTML tags.
- * Removes all < and > characters to prevent XSS.
- */
-function sanitizeContent(content: string): string {
-  return content.replace(/[<>]/g, '');
-}
+import { MAX_PAYLOAD_BYTES, byteLength } from '../utils/limits';
+import { sanitizeContent } from '../utils/sanitize';
+import { safeCompareTokens } from '../utils/tokens';
 
 /**
  * Validates content size against the 100KB payload cap.
  * @throws Error if content exceeds 100KB
  */
 function validatePayloadSize(content: string): void {
-  const byteLength = new TextEncoder().encode(content).length;
-  if (byteLength > MAX_PAYLOAD_BYTES) {
+  if (byteLength(content) > MAX_PAYLOAD_BYTES) {
     throw new Error(`Content exceeds maximum size of ${MAX_PAYLOAD_BYTES} bytes`);
   }
-}
-
-/**
- * Constant-time comparison for delete tokens to prevent timing attacks.
- * Uses crypto.timingSafeEqual for secure comparison.
- */
-function safeCompareTokens(a: string, b: string): boolean {
-  // Convert to buffers for timing-safe comparison
-  const bufA = Buffer.from(a, 'utf8');
-  const bufB = Buffer.from(b, 'utf8');
-  
-  // timingSafeEqual requires same length buffers
-  if (bufA.length !== bufB.length) {
-    // Different lengths - still do a comparison to avoid timing leak
-    // Compare bufA against itself (always passes) but return false
-    timingSafeEqual(bufA, bufA);
-    return false;
-  }
-  
-  // Constant-time comparison
-  return timingSafeEqual(bufA, bufB);
 }
 
 /**
@@ -110,28 +80,35 @@ export async function getNote(
 
 /**
  * Updates a note's content.
- * @returns true if updated, false if note doesn't exist or is expired
+ * @returns true if updated, false if note doesn't exist, is expired,
+ *          or deleteToken is wrong (uniform response)
  * @throws Error if content exceeds 100KB
  */
 export async function updateNote(
   store: NoteStore,
   id: string,
   content: string,
+  deleteToken: string,
   now?: number
 ): Promise<boolean> {
   const note = await store.get(id);
-  
+
   if (!note) {
     return false;
   }
-  
+
   if (isExpired(note.createdAt, now)) {
     return false;
   }
-  
+
+  // Constant-time comparison to prevent timing attacks
+  if (!safeCompareTokens(note.deleteToken, deleteToken)) {
+    return false;
+  }
+
   const sanitized = sanitizeContent(content);
   validatePayloadSize(sanitized);
-  
+
   return await store.update(id, sanitized);
 }
 

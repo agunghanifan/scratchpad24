@@ -58,6 +58,7 @@ describe('noteService', () => {
     store: MockNoteStore,
     id: string,
     content: string,
+    deleteToken: string,
     now?: number
   ) => Promise<boolean>;
   let deleteNote: (
@@ -212,45 +213,51 @@ describe('noteService', () => {
   describe('updateNote()', () => {
     it('updates content of an existing, non-expired note', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Original');
-      const result = await updateNote(store, noteId, 'Updated');
+      const { noteId, deleteToken } = await createNote(store, 'Original');
+      const result = await updateNote(store, noteId, 'Updated', deleteToken);
       expect(result).toBe(true);
       expect(store.data.get(noteId)!.content).toBe('Updated');
     });
     it('preserves original createdAt after update', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Original');
+      const { noteId, deleteToken } = await createNote(store, 'Original');
       const originalCreatedAt = store.data.get(noteId)!.createdAt;
       vi.setSystemTime(new Date('2024-06-01T18:00:00Z'));
-      await updateNote(store, noteId, 'Updated');
+      await updateNote(store, noteId, 'Updated', deleteToken);
       expect(store.data.get(noteId)!.createdAt).toBe(originalCreatedAt);
     });
     it('returns false for non-existent note', async () => {
       const store = createMockStore();
-      expect(await updateNote(store, 'no-such-id', 'content')).toBe(false);
+      expect(await updateNote(store, 'no-such-id', 'content', 'any-token')).toBe(false);
     });
     it('returns false for expired note', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Hello');
+      const { noteId, deleteToken } = await createNote(store, 'Hello');
       vi.setSystemTime(new Date('2024-06-02T12:00:01Z'));
-      expect(await updateNote(store, noteId, 'Updated')).toBe(false);
+      expect(await updateNote(store, noteId, 'Updated', deleteToken)).toBe(false);
+    });
+    it('returns false for wrong deleteToken', async () => {
+      const store = createMockStore();
+      const { noteId } = await createNote(store, 'Hello');
+      expect(await updateNote(store, noteId, 'Updated', 'wrong-token')).toBe(false);
+      expect(store.data.get(noteId)!.content).toBe('Hello');
     });
     it('rejects content exceeding 100KB payload cap', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Original');
+      const { noteId, deleteToken } = await createNote(store, 'Original');
       const oversized = 'x'.repeat(MAX_PAYLOAD_BYTES + 1);
-      await expect(updateNote(store, noteId, oversized)).rejects.toThrow();
+      await expect(updateNote(store, noteId, oversized, deleteToken)).rejects.toThrow();
     });
     it('accepts content at exactly 100KB', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Original');
+      const { noteId, deleteToken } = await createNote(store, 'Original');
       const exact = 'x'.repeat(MAX_PAYLOAD_BYTES);
-      await expect(updateNote(store, noteId, exact)).resolves.toBe(true);
+      await expect(updateNote(store, noteId, exact, deleteToken)).resolves.toBe(true);
     });
     it('sanitizes HTML from updated content', async () => {
       const store = createMockStore();
-      const { noteId } = await createNote(store, 'Original');
-      await updateNote(store, noteId, '<b>Bold</b> text');
+      const { noteId, deleteToken } = await createNote(store, 'Original');
+      await updateNote(store, noteId, '<b>Bold</b> text', deleteToken);
       const stored = store.data.get(noteId);
       expect(stored!.content).not.toContain('<b>');
       expect(stored!.content).not.toContain('</b>');

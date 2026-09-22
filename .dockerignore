@@ -1,0 +1,24 @@
+# Dependencies
+node_modules
+.npm-cache
+
+# Build output
+dist
+dist-server
+coverage
+
+# Environment and logs
+.env
+.env.local
+*.log
+
+# OS / editor
+.DS_Store
+
+# Scratchpad working docs
+COVERAGE_TEST_PLAN.md
+PROJECT_LOG.md
+scratchpad24-team-kickoff-prompt_v1.md
+
+# Keep scaffold directories
+!.gitkeep

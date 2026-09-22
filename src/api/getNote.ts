@@ -7,6 +7,7 @@ import type { NoteStore } from '../storage/NoteStore';
 import type { GenericRequest, GenericResponse, Handler } from './types';
 import { isExpired } from '../core/expiry';
 import { calculateExpiry } from '../core/expiry';
+import { isValidNoteId } from '../utils/validate';
 
 const JSON_HEADERS: Record<string, string> = { 'content-type': 'application/json' };
 
@@ -15,10 +16,6 @@ function jsonResponse(status: number, body: unknown): GenericResponse {
 }
 
 const NOT_FOUND_RESPONSE: GenericResponse = jsonResponse(404, { error: 'Not found' });
-
-function isValidNoteId(id: string | undefined): boolean {
-  return typeof id === 'string' && id.length > 0 && /^[a-zA-Z0-9_-]+$/.test(id);
-}
 
 /**
  * Factory that creates a getNote handler bound to a specific store.

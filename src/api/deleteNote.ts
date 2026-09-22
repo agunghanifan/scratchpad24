@@ -6,27 +6,8 @@
 import type { NoteStore } from '../storage/NoteStore';
 import type { GenericRequest, GenericResponse, Handler } from './types';
 import { isExpired } from '../core/expiry';
-
-/**
- * Constant-time comparison for delete tokens to prevent timing attacks.
- * Uses a portable XOR-based approach that works in Cloudflare Workers.
- */
-function safeCompareTokens(a: string, b: string): boolean {
-  const enc = new TextEncoder();
-  const bufA = enc.encode(a);
-  const bufB = enc.encode(b);
-  
-  if (bufA.length !== bufB.length) {
-    // Still perform comparison to maintain constant time, then return false
-    let _result = 0;
-    for (let i = 0; i < bufA.length; i++) _result |= bufA[i] ^ bufB[i];
-    return false;
-  }
-  
-  let result = 0;
-  for (let i = 0; i < bufA.length; i++) result |= bufA[i] ^ bufB[i];
-  return result === 0;
-}
+import { safeCompareTokens } from '../utils/tokens';
+import { isValidNoteId } from '../utils/validate';
 
 const JSON_HEADERS: Record<string, string> = { 'content-type': 'application/json' };
 
@@ -35,10 +16,6 @@ function jsonResponse(status: number, body: unknown): GenericResponse {
 }
 
 const NOT_FOUND_RESPONSE: GenericResponse = jsonResponse(404, { error: 'Not found' });
-
-function isValidNoteId(id: string | undefined): boolean {
-  return typeof id === 'string' && id.length > 0 && /^[a-zA-Z0-9_-]+$/.test(id);
-}
 
 /**
  * Extracts delete token from request body or header.

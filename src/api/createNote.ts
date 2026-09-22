@@ -6,17 +6,12 @@ import type { NoteStore, NoteRecord } from '../storage/NoteStore';
 import type { GenericRequest, GenericResponse, Handler } from './types';
 import { generateNoteId, generateDeleteToken } from '../core/idGenerator';
 import { sanitizeContent } from '../utils/sanitize';
-
-const MAX_PAYLOAD_BYTES = 100 * 1024; // 100KB
+import { MAX_PAYLOAD_BYTES, byteLength } from '../utils/limits';
 
 const JSON_HEADERS: Record<string, string> = { 'content-type': 'application/json' };
 
 function jsonResponse(status: number, body: unknown): GenericResponse {
   return { status, body, headers: { ...JSON_HEADERS } };
-}
-
-function byteLength(s: string): number {
-  return new TextEncoder().encode(s).length;
 }
 
 /**

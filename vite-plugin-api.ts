@@ -1,59 +1,42 @@
 /**
  * Vite plugin for local API development.
- * Adds middleware to handle /api/* routes using the platform-agnostic handlers
- * with InMemoryNoteStore.
+ * Adds middleware to handle /api/* routes using the shared API router
+ * with InMemoryNoteStore and the same rate limiting as production.
  */
 import type { Plugin } from 'vite';
 import { InMemoryNoteStore } from './src/storage/InMemoryNoteStore';
-import { createCreateNoteHandler } from './src/api/createNote';
-import { createGetNoteHandler } from './src/api/getNote';
-import { createUpdateNoteHandler } from './src/api/updateNote';
-import { createDeleteNoteHandler } from './src/api/deleteNote';
-import { applySecurityHeaders } from './src/api/security';
-import type { GenericRequest } from './src/api/types';
+import { createApiRouter, type ApiRequest } from './src/api/router';
 
 export function apiPlugin(): Plugin {
   const store = new InMemoryNoteStore();
-  
-  const createHandler = createCreateNoteHandler(store);
-  const getHandler = createGetNoteHandler(store);
-  const updateHandler = createUpdateNoteHandler(store);
-  const deleteHandler = createDeleteNoteHandler(store);
+  const router = createApiRouter(store);
 
   return {
     name: 'vite-plugin-api',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         const url = req.url || '';
-        
+
         // Only handle /api/* routes
-        if (!url.startsWith('/api/')) {
+        if (!url.startsWith('/api')) {
           return next();
         }
-
-        // Strip /api prefix for routing
-        const path = url.replace('/api', '');
 
         try {
           // Read request body
           let body: unknown = undefined;
-          if (req.method !== 'GET' && req.method !== 'HEAD') {
-            body = await new Promise((resolve, reject) => {
-              let data = '';
-              req.on('data', chunk => (data += chunk));
-              req.on('end', () => {
-                if (data) {
-                  try {
-                    resolve(JSON.parse(data));
-                  } catch {
-                    resolve(undefined);
-                  }
-                } else {
-                  resolve(undefined);
-                }
-              });
-              req.on('error', reject);
-            });
+          if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
+            let data = '';
+            for await (const chunk of req) {
+              data += chunk;
+            }
+            if (data) {
+              try {
+                body = JSON.parse(data);
+              } catch {
+                body = undefined;
+              }
+            }
           }
 
           // Extract headers
@@ -64,54 +47,26 @@ export function apiPlugin(): Plugin {
             }
           }
 
-          // Extract params from path
-          const params: Record<string, string> = {};
-          const noteIdMatch = path.match(/^\/notes\/([^/]+)$/);
-          if (noteIdMatch && noteIdMatch[1]) {
-            params.noteId = noteIdMatch[1];
-          }
-
-          // Build GenericRequest
-          const genericReq: GenericRequest = {
+          const apiReq: ApiRequest = {
+            url,
             method: req.method || 'GET',
-            params,
-            body,
             headers,
+            body,
           };
 
-          // Route to appropriate handler
-          let genericRes;
-          if (path === '/notes' && req.method === 'POST') {
-            genericRes = await createHandler(genericReq);
-          } else if (path.match(/^\/notes\/[^/]+$/) && req.method === 'GET') {
-            genericRes = await getHandler(genericReq);
-          } else if (path.match(/^\/notes\/[^/]+$/) && (req.method === 'PUT' || req.method === 'PATCH')) {
-            genericRes = await updateHandler(genericReq);
-          } else if (path.match(/^\/notes\/[^/]+$/) && req.method === 'DELETE') {
-            genericRes = await deleteHandler(genericReq);
-          } else {
-            // 404 for unmatched routes
-            genericRes = {
-              status: 404,
-              body: { error: 'Not found' },
-              headers: { 'content-type': 'application/json' },
-            };
-          }
+          const genericRes = await router.handle(apiReq);
 
           // Write response
+          if (!genericRes) {
+            return next();
+          }
+
           res.statusCode = genericRes.status;
-          
+
           // Set response headers
           for (const [key, value] of Object.entries(genericRes.headers)) {
             res.setHeader(key, value);
           }
-          
-          // Apply security headers
-          const securityHeaders = new Headers();
-          applySecurityHeaders(securityHeaders);
-          securityHeaders.forEach((value, key) => {
-            res.setHeader(key, value);
-          });
 
           // Send body
           if (genericRes.body !== undefined && genericRes.body !== null) {
