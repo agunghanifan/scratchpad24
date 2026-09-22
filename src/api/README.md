@@ -1,89 +1,23 @@
-# API Handlers — Milestone 4
+# API Handlers
 
-## Test Files Created
+Platform-agnostic serverless handlers for note CRUD. The core (in `../core/noteService.ts`) holds pure business logic; these handlers are thin factories that bind a `NoteStore` to HTTP semantics. The adapter bridges generic handlers to a specific platform's `Request`/`Response` (Cloudflare Workers, Vercel, Netlify, etc.).
 
-All test files are in place and failing (TDD approach):
+## Files
 
-1. **createNote.test.ts** — 28 tests
-   - Happy path: 201 with noteId/deleteToken
-   - Validation: missing/invalid content → 400
-   - Payload cap: >100KB → 413
-   - Security: HTML sanitization
-   - Error handling: store failures → 500
-   - Method validation: non-POST → 405
-
-2. **getNote.test.ts** — 19 tests
-   - Happy path: 200 with note data (no deleteToken exposed)
-   - **CRITICAL**: Uniform 404 for "never existed" vs "expired"
-   - Malformed ID validation → 400
-   - Method validation: non-GET → 405
-   - Error handling: store failures → 500
-
-3. **updateNote.test.ts** — 22 tests
-   - Happy path: 200 with { success: true }
-   - Uniform 404 for not found / expired
-   - Validation: missing/invalid content → 400
-   - Payload cap: >100KB → 413
-   - Malformed ID validation → 400
-   - Method validation: non-PUT/PATCH → 405
-
-4. **deleteNote.test.ts** — 24 tests
-   - Happy path: 200 with { success: true }
-   - **CRITICAL**: Uniform 404 for all failure modes:
-     - Never existed
-     - Expired
-     - Wrong token
-   - Missing token validation → 400
-   - Malformed ID validation → 400
-   - Method validation: non-DELETE → 405
-
-5. **adapter.test.ts** — 13 tests
-   - Request conversion (Cloudflare Workers Request → GenericRequest)
-   - Response conversion (GenericResponse → platform Response)
-   - CORS: same-origin by default (no Access-Control-Allow-Origin)
-   - Error handling: handler crashes → 500, malformed JSON → 400
-
-6. **types.ts** — Generic request/response types
-   - GenericRequest: method, params, body, headers
-   - GenericResponse: status, body, headers
-   - Handler type: (req: GenericRequest) => Promise<GenericResponse>
-
-## Implementation Files Needed
-
-Create these files to make tests pass:
-
-- `src/api/createNote.ts` — export `createCreateNoteHandler(store: NoteStore): Handler`
-- `src/api/getNote.ts` — export `createGetNoteHandler(store: NoteStore): Handler`
-- `src/api/updateNote.ts` — export `createUpdateNoteHandler(store: NoteStore): Handler`
-- `src/api/deleteNote.ts` — export `createDeleteNoteHandler(store: NoteStore): Handler`
-- `src/api/adapter.ts` — export `adaptHandler(handler: Handler): (req: Request) => Promise<Response>`
-
-## Security Requirements
-
-### Uniform Error Responses (CRITICAL)
-
-**getNote**: Must return identical 404 response for:
-- Note never existed
-- Note expired
-
-**deleteNote**: Must return identical 404 response for:
-- Note never existed
-- Note expired
-- Wrong delete token
-
-This prevents information leakage about note existence/state.
-
-### Other Security Tests
-
-- Payload cap: 100KB hard limit, no silent truncation
-- HTML sanitization: strip all `<` and `>` characters
-- Malformed ID validation: reject before reaching store
-- No information leakage in error messages
-- CORS: same-origin by default
+| File | Exports | Purpose |
+|------|---------|---------|
+| `createNote.ts` | `createCreateNoteHandler(store)` | `POST /notes` → 201 `{ noteId, deleteToken }`; validation 400; >100KB 413; non-POST 405 |
+| `getNote.ts` | `createGetNoteHandler(store)` | `GET /notes/:noteId` → 200 note (no `deleteToken`); uniform 404 for never-existed/expired |
+| `updateNote.ts` | `createUpdateNoteHandler(store)` | `PUT|PATCH /notes/:noteId` → 200 `{ success: true }`; uniform 404 |
+| `deleteNote.ts` | `createDeleteNoteHandler(store)` | `DELETE /notes/:noteId` → 200 `{ success: true }`; uniform 404 for never-existed/expired/wrong token |
+| `adapter.ts` | `adaptHandler(handler)` | Converts `Request` ↔ `GenericRequest`, `GenericResponse` → `Response`; CORS preflight; 500 on handler crash |
+| `client.ts` | `createNote`, `getNote`, `updateNote`, `deleteNote` | Frontend fetch client |
+| `cron.ts` | `cleanupExpired(env)` | Hourly sweep of expired notes not caught by KV TTL |
+| `rateLimiter.ts` | `createRateLimiter`, `withRateLimit`, `extractClientIP` | Per-IP, per-endpoint limits from env config |
+| `security.ts` | `getSecurityHeaders`, `getCorsHeaders`, `applySecurityHeaders` | Security + CORS headers |
+| `types.ts` | `GenericRequest`, `GenericResponse`, `Handler` | Shared handler contract |
 
 ## Handler Contract
-
-Each handler factory takes a `NoteStore` and returns a `Handler` function:
 
 ```typescript
 type Handler = (req: GenericRequest) => Promise<GenericResponse>;
@@ -102,10 +36,19 @@ interface GenericResponse {
 }
 ```
 
+## Security Invariants
+
+- **Uniform 404s** — `getNote` returns the identical 404 whether the note never existed or expired; `deleteNote` also collapses wrong tokens into the same 404. No information leakage about note existence or state.
+- **Payload cap** — 100KB hard limit, rejected with 413, never truncated.
+- **Sanitization** — all `<` and `>` stripped from content.
+- **Malformed IDs** — rejected with 400 before reaching the store.
+- **Constant-time token compare** — delete tokens compared with `crypto.timingSafeEqual`.
+- **CORS** — same-origin by default; no wildcard `Access-Control-Allow-Origin`.
+
 ## Running Tests
 
 ```bash
 npm test -- src/api/
 ```
 
-Expected: All tests fail until implementations are created.
+All handler tests pass (create 28, get 19, update 22, delete 24, adapter 13, plus cron and client).

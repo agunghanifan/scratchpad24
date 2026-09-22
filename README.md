@@ -115,9 +115,11 @@ src/
 │   └── sanitize.ts       # HTML sanitization (strip < > characters)
 ├── App.tsx               # Root component with routing
 └── main.tsx              # Entry point
+vite-plugin-api.ts        # Dev-server middleware: /api/* → handlers + InMemoryNoteStore
+vite.config.ts            # Vite + Vitest config (jsdom env, 100% coverage thresholds)
 tests/
 ├── scaffold.test.ts      # Scaffold validation tests
-└── e2e/                  # End-to-end tests
+└── e2e/                  # End-to-end tests (empty — planned, not yet implemented)
 ```
 
 ### Key Design Principles
